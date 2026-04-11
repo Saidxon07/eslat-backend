@@ -20,12 +20,15 @@ function initBot() {
   botInstance = bot;
 
   // ── KEYBOARDS ─────────────────────────────────────────────
+  // Web App uchun faqat HTTPS ruxsat etiladi
+  const webAppUrl = process.env.FRONTEND_URL?.startsWith('https') ? process.env.FRONTEND_URL : 'https://eslatai2.web.app';
+  
   const mainKeyboard = {
     reply_markup: {
       keyboard: [
         [{ text: '💊 Bugungi Dorilarim' }, { text: '🍽️ Bugungi Ovqat' }],
         [{ text: '✅ Odatlarim' }, { text: '📝 Eslatmalar (Notepad)' }],
-        [{ text: '🌐 Saytga o\'tish' }]
+        [{ text: '🌐 Saytga o\'tish', web_app: { url: webAppUrl } }, { text: '🚫 Ulanishni uzish' }]
       ],
       resize_keyboard: true,
     }
@@ -147,7 +150,20 @@ Botni Eslat ilovasiga ulash uchun:
       bot.sendMessage(chatId, text, { parse_mode: 'Markdown', ...mainKeyboard });
 
     } else if (msg.text === '🌐 Saytga o\'tish') {
-      bot.sendMessage(chatId, `Dasturni ochish: ${process.env.FRONTEND_URL || 'http://localhost:5500'}`, mainKeyboard);
+      bot.sendMessage(chatId, '👇 Saytni ochish uchun pastlagi menyudagi "🌐 Saytga o\'tish" tugmasini bosing!', mainKeyboard);
+    } else if (msg.text === '🚫 Ulanishni uzish' || msg.text === '/unlink') {
+      try {
+        await getDb().collection('users').doc(uid).update({ 
+          telegramLinked: false, 
+          telegramChatId: null 
+        });
+        bot.sendMessage(chatId, "🔌 *Ulanish uzildi*\n\nSizning Telegram hisobingiz Eslat tizimidan muvaffaqiyatli uzildi. Eslatmalar va menyu o'chirildi.", {
+          parse_mode: 'Markdown',
+          reply_markup: { remove_keyboard: true }
+        });
+      } catch (e) {
+        bot.sendMessage(chatId, "❌ O'chirishda xatolik yuz berdi. Iltimos, keyinroq qayta urinib ko'ring.");
+      }
     } else {
       // Save generic text as a new Note
       try {

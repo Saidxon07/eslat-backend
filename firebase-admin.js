@@ -14,8 +14,18 @@ function initFirebase() {
     || path.join(__dirname, 'firebase-service-account.json');
 
   try {
-    if (fs.existsSync(serviceAccountPath)) {
-      const serviceAccount = require(serviceAccountPath);
+    let serviceAccount;
+    
+    // Yechim 1: Koyeb yoki Render uchun JSON string orqali (Environment Variable)
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+    } 
+    // Yechim 2: Fayl orqali (Lokal kompyuter uchun)
+    else if (fs.existsSync(serviceAccountPath)) {
+      serviceAccount = require(serviceAccountPath);
+    }
+
+    if (serviceAccount) {
       admin.initializeApp({
         credential:              admin.credential.cert(serviceAccount),
         databaseURL:             process.env.FIREBASE_DATABASE_URL,

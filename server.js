@@ -19,6 +19,8 @@ app.use(cors({
     'http://127.0.0.1:5500',
     'http://localhost:5173',
     'http://localhost:3000',
+    'https://eslatai2.web.app',
+    'https://eslatai2.firebaseapp.com',
   ],
   credentials: true,
 }));
@@ -33,7 +35,13 @@ startScheduler(bot);
 
 /** Health check */
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', time: new Date().toISOString(), service: 'Eslat Backend' });
+  res.json({
+    status: 'ok',
+    time: new Date().toISOString(),
+    service: 'Eslat Backend',
+    version: '1.0.0',
+    uptime: process.uptime(),
+  });
 });
 
 /** Check if user linked Telegram */
@@ -51,6 +59,32 @@ app.get('/api/check-link', async (req, res) => {
     }
     return res.json({ linked: false });
   } catch (e) {
+    console.error('check-link error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/** Unlink Telegram */
+app.post('/api/unlink-tg', async (req, res) => {
+  const { uid } = req.body;
+  if (!uid) return res.status(400).json({ error: 'uid required' });
+
+  try {
+    const userDoc = await getDb().collection('users').doc(uid).get();
+    if (userDoc.exists) {
+      const data = userDoc.data();
+      if (data.telegramChatId && bot) {
+        try {
+          bot.sendMessage(data.telegramChatId, "❌ Sizning Telegram hisobingiz Eslat saytidan muvaffaqiyatli uzildi. Agar adashib bosgan bo'lsangiz, sayt orqali qayta ulanishingiz mumkin.");
+        } catch (msgErr) {
+          console.warn('Telegram xabar yuborishda xato:', msgErr.message);
+        }
+      }
+    }
+    await getDb().collection('users').doc(uid).update({ telegramLinked: false, telegramChatId: null });
+    res.json({ success: true });
+  } catch (e) {
+    console.error('unlink-tg error:', e.message);
     res.status(500).json({ error: e.message });
   }
 });
@@ -58,6 +92,7 @@ app.get('/api/check-link', async (req, res) => {
 /** Manual reminder send (for testing) */
 app.post('/api/send-test', async (req, res) => {
   const { uid, message } = req.body;
+
   if (!uid || !message) return res.status(400).json({ error: 'uid and message required' });
 
   try {
